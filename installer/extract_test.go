@@ -26,7 +26,7 @@ func TestExtractTarGz(t *testing.T) {
 
 	// 解压到新目录
 	extractDir := filepath.Join(tmpDir, "extracted")
-	err = extractTarGz(tarGzPath, extractDir)
+	err = extractTarGz(tarGzPath, extractDir, "")
 	if err != nil {
 		t.Fatalf("解压失败: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestExtractTarGz_EmptyArchive(t *testing.T) {
 	}
 
 	extractDir := filepath.Join(tmpDir, "extracted")
-	err = extractTarGz(tarGzPath, extractDir)
+	err = extractTarGz(tarGzPath, extractDir, "")
 	if err != nil {
 		t.Fatalf("解压空归档失败: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestExtractTarGz_NestedDirectories(t *testing.T) {
 	}
 
 	extractDir := filepath.Join(tmpDir, "extracted")
-	err = extractTarGz(tarGzPath, extractDir)
+	err = extractTarGz(tarGzPath, extractDir, "")
 	if err != nil {
 		t.Fatalf("解压失败: %v", err)
 	}
@@ -115,7 +115,7 @@ func TestExtractTarGz_FileNotExist(t *testing.T) {
 	tmpDir := t.TempDir()
 	extractDir := filepath.Join(tmpDir, "extracted")
 
-	err := extractTarGz("/nonexistent/file.tar.gz", extractDir)
+	err := extractTarGz("/nonexistent/file.tar.gz", extractDir, "")
 	if err == nil {
 		t.Error("期望返回错误，但没有错误")
 	}
@@ -133,7 +133,7 @@ func TestExtractTarGz_InvalidGzip(t *testing.T) {
 	}
 
 	extractDir := filepath.Join(tmpDir, "extracted")
-	err = extractTarGz(invalidFile, extractDir)
+	err = extractTarGz(invalidFile, extractDir, "")
 	if err == nil {
 		t.Error("期望返回错误，但没有错误")
 	}
@@ -267,7 +267,7 @@ func TestExtractTarGz_PreservePermissions(t *testing.T) {
 	}
 
 	extractDir := filepath.Join(tmpDir, "extracted")
-	err = extractTarGz(tarGzPath, extractDir)
+	err = extractTarGz(tarGzPath, extractDir, "")
 	if err != nil {
 		t.Fatalf("解压失败: %v", err)
 	}
@@ -315,7 +315,7 @@ func BenchmarkExtractTarGz(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		extractDir := filepath.Join(tmpDir, "extracted", string(rune(i)))
-		err := extractTarGz(tarGzPath, extractDir)
+		err := extractTarGz(tarGzPath, extractDir, "")
 		if err != nil {
 			b.Fatalf("解压失败: %v", err)
 		}
@@ -423,7 +423,7 @@ func TestExtractTarGz_LargeFile(t *testing.T) {
 
 	extractDir := filepath.Join(tmpDir, "extracted")
 	t.Logf("解压 10MB 文件...")
-	err = extractTarGz(tarGzPath, extractDir)
+	err = extractTarGz(tarGzPath, extractDir, "")
 	if err != nil {
 		t.Fatalf("解压失败: %v", err)
 	}

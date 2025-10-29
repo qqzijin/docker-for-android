@@ -28,8 +28,11 @@ func TestDownloadFromURL(t *testing.T) {
 	tmpDir := t.TempDir()
 	destPath := filepath.Join(tmpDir, "test-download.txt")
 
+	// 创建测试客户端
+	client := CreateHTTPClient()
+
 	// 测试下载
-	err := downloadFromURL(server.URL, destPath)
+	err := downloadFromURL(client, server.URL, destPath)
 	if err != nil {
 		t.Fatalf("下载失败: %v", err)
 	}
@@ -55,7 +58,10 @@ func TestDownloadFromURL_HTTPError(t *testing.T) {
 	tmpDir := t.TempDir()
 	destPath := filepath.Join(tmpDir, "test-error.txt")
 
-	err := downloadFromURL(server.URL, destPath)
+	// 创建测试客户端
+	client := CreateHTTPClient()
+
+	err := downloadFromURL(client, server.URL, destPath)
 	if err == nil {
 		t.Fatal("期望返回错误，但没有错误")
 	}
@@ -131,7 +137,8 @@ func TestDownloadFile_WithRetry(t *testing.T) {
 
 	// 直接测试 downloadFromURL 的重试逻辑
 	// 注意：这里我们只能测试单个 URL，完整的重试需要修改代码支持依赖注入
-	err := downloadFromURL(successServer.URL, destPath)
+	client := CreateHTTPClient()
+	err := downloadFromURL(client, successServer.URL, destPath)
 	if err != nil {
 		t.Fatalf("下载失败: %v", err)
 	}
@@ -158,8 +165,11 @@ func TestDownloadFile_SHA256Mismatch(t *testing.T) {
 	tmpDir := t.TempDir()
 	destPath := filepath.Join(tmpDir, "test-mismatch.txt")
 
+	// 创建测试客户端
+	client := CreateHTTPClient()
+
 	// 下载
-	err := downloadFromURL(server.URL, destPath)
+	err := downloadFromURL(client, server.URL, destPath)
 	if err != nil {
 		t.Fatalf("下载失败: %v", err)
 	}
@@ -327,10 +337,13 @@ func BenchmarkDownloadFromURL(b *testing.B) {
 
 	tmpDir := b.TempDir()
 
+	// 创建测试客户端
+	client := CreateHTTPClient()
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		destPath := filepath.Join(tmpDir, fmt.Sprintf("bench-%d.dat", i))
-		err := downloadFromURL(server.URL, destPath)
+		err := downloadFromURL(client, server.URL, destPath)
 		if err != nil {
 			b.Fatalf("下载失败: %v", err)
 		}
@@ -400,8 +413,11 @@ func TestDownloadWithProgress(t *testing.T) {
 	tmpDir := t.TempDir()
 	destPath := filepath.Join(tmpDir, "test-progress.dat")
 
+	// 创建测试客户端
+	client := CreateHTTPClient()
+
 	t.Logf("开始下载 5MB 测试文件...")
-	err := downloadFromURL(server.URL, destPath)
+	err := downloadFromURL(client, server.URL, destPath)
 	if err != nil {
 		t.Fatalf("下载失败: %v", err)
 	}
@@ -481,8 +497,11 @@ func TestLargeFileDownload(t *testing.T) {
 	tmpDir := t.TempDir()
 	destPath := filepath.Join(tmpDir, "test-large.dat")
 
+	// 创建测试客户端
+	client := CreateHTTPClient()
+
 	t.Logf("开始下载 50MB 大文件...")
-	err := downloadFromURL(server.URL, destPath)
+	err := downloadFromURL(client, server.URL, destPath)
 	if err != nil {
 		t.Fatalf("下载失败: %v", err)
 	}

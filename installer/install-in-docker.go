@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,6 +30,9 @@ func main() {
 	fmt.Println("==========================================")
 	fmt.Println()
 
+	// 创建统一的 HTTP 客户端
+	httpClient := CreateHTTPClient()
+
 	// Step 1: 检测硬盘挂载
 	fmt.Println("[1/5] 检测硬盘挂载点...")
 	diskRoot, err := detectDiskMount()
@@ -52,7 +56,7 @@ func main() {
 
 	// Step 2: 获取版本信息
 	fmt.Println("[2/5] 获取版本信息...")
-	version, err := getVersionInfo(tmpDir)
+	version, err := getVersionInfo(httpClient, tmpDir)
 	if err != nil {
 		fmt.Printf("✗ 错误: 无法获取版本信息: %v\n", err)
 		os.Exit(1)
@@ -68,7 +72,7 @@ func main() {
 	dockerTarFile := fmt.Sprintf("docker-%s.tar.gz", version.Version)
 	dockerTarPath := filepath.Join(tmpDir, dockerTarFile)
 	fmt.Printf("⏳ 下载 %s...\n", dockerTarFile)
-	if err := downloadFile(dockerTarPath, dockerTarFile, version.DockerSHA256); err != nil {
+	if err := downloadFile(httpClient, dockerTarPath, dockerTarFile, version.DockerSHA256); err != nil {
 		fmt.Printf("✗ 错误: 下载失败: %v\n", err)
 		os.Exit(1)
 	}
@@ -78,31 +82,53 @@ func main() {
 	binTarFile := fmt.Sprintf("docker-for-android-bin-%s-%s.tar.gz", version.Version, version.Architecture)
 	binTarPath := filepath.Join(tmpDir, binTarFile)
 	fmt.Printf("⏳ 下载 %s...\n", binTarFile)
-	if err := downloadFile(binTarPath, binTarFile, version.BinSHA256); err != nil {
+	if err := downloadFile(httpClient, binTarPath, binTarFile, version.BinSHA256); err != nil {
 		fmt.Printf("✗ 错误: 下载失败: %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("✓ %s 下载完成\n", binTarFile)
 	fmt.Println()
 
+	// Step 3.5: 停止正在运行的服务
+	fmt.Println("[3.5/5] 停止现有服务...")
+	if err := stopSupervisord(); err != nil {
+		fmt.Printf("✗ 错误: 停止 supervisord 服务失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println()
+
 	// Step 4: 解压文件
 	fmt.Println("[4/5] 解压安装文件...")
 
-	// 解压 docker 包到 /data/local/docker
+	// 解压 docker 包到 /data/local/docker（不去前缀）
 	fmt.Printf("⏳ 解压 %s 到 %s...\n", dockerTarFile, dockerRoot)
-	if err := extractTarGz(dockerTarPath, "/data/local"); err != nil {
+	if err := extractTarGz(dockerTarPath, "/data/local", ""); err != nil {
 		fmt.Printf("✗ 错误: 解压失败: %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("✓ %s 解压完成\n", dockerTarFile)
 
-	// 解压二进制包到 /data/local/docker/bin
-	fmt.Printf("⏳ 解压 %s 到 %s...\n", binTarFile, binDir)
-	if err := extractTarGz(binTarPath, binDir); err != nil {
+	// 解压二进制包到临时目录
+	binExtractDir := filepath.Join(dockerRoot, "tmp_bin_extract")
+	os.RemoveAll(binExtractDir) // 保证干净
+	if err := os.MkdirAll(binExtractDir, 0755); err != nil {
+		fmt.Printf("✗ 错误: 创建临时解压目录失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("⏳ 解压 %s 到临时目录 %s...\n", binTarFile, binExtractDir)
+	if err := extractTarGz(binTarPath, binExtractDir, ""); err != nil {
 		fmt.Printf("✗ 错误: 解压失败: %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("✓ %s 解压完成\n", binTarFile)
+
+	// 移动 arm64_bin/* 到 binDir
+	armBinDir := filepath.Join(binExtractDir, "arm64_bin")
+	if err := moveBinFiles(armBinDir, binDir); err != nil {
+		fmt.Printf("✗ 错误: 移动 arm64_bin 文件失败: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("✓ arm64_bin 文件已移动到 %s\n", binDir)
 
 	// 设置二进制文件权限
 	if err := setBinPermissions(binDir); err != nil {
@@ -136,7 +162,7 @@ func main() {
 }
 
 // getVersionInfo 获取版本信息
-func getVersionInfo(tmpDir string) (*VersionInfo, error) {
+func getVersionInfo(client *http.Client, tmpDir string) (*VersionInfo, error) {
 	// 检测当前架构
 	arch, err := detectArchitecture()
 	if err != nil {
@@ -145,7 +171,7 @@ func getVersionInfo(tmpDir string) (*VersionInfo, error) {
 
 	// 先尝试从 CDN 下载 version.txt
 	versionPath := filepath.Join(tmpDir, versionFile)
-	if err := downloadFile(versionPath, versionFile, ""); err != nil {
+	if err := downloadFile(client, versionPath, versionFile, ""); err != nil {
 		return nil, fmt.Errorf("无法下载 version.txt: %v", err)
 	}
 

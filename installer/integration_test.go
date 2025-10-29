@@ -21,10 +21,13 @@ func TestRealServerDownload(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Logf("临时目录: %s", tmpDir)
 
+	// 创建 HTTP 客户端
+	client := CreateHTTPClient()
+
 	// Step 1: 下载 version.txt
 	t.Log("\n[1/4] 下载 version.txt...")
 	versionPath := filepath.Join(tmpDir, "version.txt")
-	err := downloadFile(versionPath, "version.txt", "")
+	err := downloadFile(client, versionPath, "version.txt", "")
 	if err != nil {
 		t.Fatalf("下载 version.txt 失败: %v", err)
 	}
@@ -88,7 +91,7 @@ func TestRealServerDownload(t *testing.T) {
 	dockerTarPath := filepath.Join(tmpDir, dockerTarFile)
 
 	t.Logf("下载文件: %s", dockerTarFile)
-	err = downloadFile(dockerTarPath, dockerTarFile, info.DockerSHA256)
+	err = downloadFile(client, dockerTarPath, dockerTarFile, info.DockerSHA256)
 	if err != nil {
 		t.Fatalf("下载或验证 docker 包失败: %v", err)
 	}
@@ -100,7 +103,7 @@ func TestRealServerDownload(t *testing.T) {
 	binTarPath := filepath.Join(tmpDir, binTarFile)
 
 	t.Logf("下载文件: %s", binTarFile)
-	err = downloadFile(binTarPath, binTarFile, info.BinSHA256)
+	err = downloadFile(client, binTarPath, binTarFile, info.BinSHA256)
 	if err != nil {
 		t.Fatalf("下载或验证二进制包失败: %v", err)
 	}
@@ -128,10 +131,13 @@ func TestRealServerExtractAndVerifyStructure(t *testing.T) {
 	os.MkdirAll(downloadDir, 0755)
 	os.MkdirAll(extractDir, 0755)
 
+	// 创建 HTTP 客户端
+	client := CreateHTTPClient()
+
 	// Step 1: 下载 version.txt 并解析
 	t.Log("\n[1/5] 获取版本信息...")
 	versionPath := filepath.Join(downloadDir, "version.txt")
-	err := downloadFile(versionPath, "version.txt", "")
+	err := downloadFile(client, versionPath, "version.txt", "")
 	if err != nil {
 		t.Fatalf("下载 version.txt 失败: %v", err)
 	}
@@ -172,7 +178,7 @@ func TestRealServerExtractAndVerifyStructure(t *testing.T) {
 	t.Log("\n[2/5] 下载 docker 包...")
 	dockerTarFile := "docker-" + info.Version + ".tar.gz"
 	dockerTarPath := filepath.Join(downloadDir, dockerTarFile)
-	err = downloadFile(dockerTarPath, dockerTarFile, info.DockerSHA256)
+	err = downloadFile(client, dockerTarPath, dockerTarFile, info.DockerSHA256)
 	if err != nil {
 		t.Fatalf("下载 docker 包失败: %v", err)
 	}
@@ -182,7 +188,7 @@ func TestRealServerExtractAndVerifyStructure(t *testing.T) {
 	t.Log("\n[3/5] 下载二进制包...")
 	binTarFile := "docker-for-android-bin-" + info.Version + "-arm64.tar.gz"
 	binTarPath := filepath.Join(downloadDir, binTarFile)
-	err = downloadFile(binTarPath, binTarFile, info.BinSHA256)
+	err = downloadFile(client, binTarPath, binTarFile, info.BinSHA256)
 	if err != nil {
 		t.Fatalf("下载二进制包失败: %v", err)
 	}
@@ -191,7 +197,7 @@ func TestRealServerExtractAndVerifyStructure(t *testing.T) {
 	// Step 4: 解压 docker 包
 	t.Log("\n[4/5] 解压文件...")
 	t.Log("解压 docker 包到 extracted/...")
-	err = extractTarGz(dockerTarPath, extractDir)
+	err = extractTarGz(dockerTarPath, extractDir, "")
 	if err != nil {
 		t.Fatalf("解压 docker 包失败: %v", err)
 	}
@@ -201,7 +207,7 @@ func TestRealServerExtractAndVerifyStructure(t *testing.T) {
 	dockerDir := filepath.Join(extractDir, "docker")
 
 	t.Log("解压二进制包到 docker/...")
-	err = extractTarGz(binTarPath, dockerDir)
+	err = extractTarGz(binTarPath, dockerDir, "")
 	if err != nil {
 		t.Fatalf("解压二进制包失败: %v", err)
 	}

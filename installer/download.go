@@ -17,8 +17,18 @@ const (
 	serverURL = "https://fw.koolcenter.com/binary/docker-for-android"
 )
 
+// CreateHTTPClient 创建统一的 HTTP 客户端
+// 使用 120 秒超时的自定义 Transport
+func CreateHTTPClient() *http.Client {
+	transport := CreateTimeoutTransport(120 * time.Second)
+	return &http.Client{
+		Transport: CreateLogTransport(transport),
+		Timeout:   10 * time.Minute,
+	}
+}
+
 // downloadFile 下载文件并验证 SHA256
-func downloadFile(destPath, filename, expectedSHA256 string) error {
+func downloadFile(client *http.Client, destPath, filename, expectedSHA256 string) error {
 	urls := []string{
 		fmt.Sprintf("%s/%s", cdnURL, filename),
 		fmt.Sprintf("%s/%s", serverURL, filename),
@@ -32,7 +42,7 @@ func downloadFile(destPath, filename, expectedSHA256 string) error {
 		}
 		fmt.Printf("   尝试从%s下载...\n", source)
 
-		err := downloadFromURL(url, destPath)
+		err := downloadFromURL(client, url, destPath)
 		if err != nil {
 			lastErr = err
 			fmt.Printf("   ✗ 下载失败: %v\n", err)
@@ -57,11 +67,7 @@ func downloadFile(destPath, filename, expectedSHA256 string) error {
 }
 
 // downloadFromURL 从指定 URL 下载文件
-func downloadFromURL(url, destPath string) error {
-	client := &http.Client{
-		Timeout: 10 * time.Minute,
-	}
-
+func downloadFromURL(client *http.Client, url, destPath string) error {
 	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("HTTP 请求失败: %v", err)
