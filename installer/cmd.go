@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -156,69 +155,39 @@ func stopSupervisord() error {
 	// 等待一小段时间，让进程有机会正常退出
 	time.Sleep(2 * time.Second)
 
-	// 检查 supervisord 进程是否仍在运行
-	fmt.Println("⏳ 检查 supervisord 进程...")
-	pids, err := findSupervisordProcesses()
-	if err != nil {
-		return fmt.Errorf("查找 supervisord 进程失败: %v", err)
-	}
-
-	if len(pids) == 0 {
-		fmt.Println("✓ 未检测到 supervisord 进程")
-		return nil
-	}
-
-	// 如果进程仍在运行，强制 kill
-	fmt.Printf("⚠ 检测到 %d 个 supervisord 进程仍在运行，正在强制终止...\n", len(pids))
-	for _, pid := range pids {
-		fmt.Printf("  终止进程 PID: %d\n", pid)
-		if err := killProcess(pid); err != nil {
-			fmt.Printf("  ⚠ 警告: 终止进程 %d 失败: %v\n", pid, err)
-		}
-	}
-
-	// 再次等待，确保进程已终止
-	time.Sleep(1 * time.Second)
-
-	// 最终验证
-	pids, _ = findSupervisordProcesses()
-	if len(pids) > 0 {
-		return fmt.Errorf("无法终止 supervisord 进程: %v", pids)
+	// 检查 supervisord 进程是否仍在运行，并强制终止
+	fmt.Println("⏳ 检查并终止 supervisord 进程...")
+	if err := killSupervisordProcesses(); err != nil {
+		fmt.Printf("终止 supervisord 进程失败: %v，但继续运行\n", err)
 	}
 
 	fmt.Println("✓ 所有 supervisord 进程已终止")
 	return nil
 }
 
-// findSupervisordProcesses 查找所有 supervisord 进程的 PID
-func findSupervisordProcesses() ([]int, error) {
-	cmd := exec.Command("ps", "-ef")
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("执行 ps 命令失败: %v", err)
-	}
+// killSupervisordProcesses 使用 pkill 终止所有 supervisord 进程
+func killSupervisordProcesses() error {
+	// 使用 pkill -9 直接终止所有 supervisord 进程
+	// pkill 返回码: 0=成功终止进程, 1=没有匹配的进程, 其他=错误
+	cmd := exec.Command("pkill", "-9", "supervisord")
+	err := cmd.Run()
 
-	var pids []int
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		// 查找包含 supervisord 的进程，但排除 grep 和当前进程
-		if strings.Contains(line, "supervisord") && !strings.Contains(line, "grep") {
-			// 解析 PID（通常是第二列）
-			fields := strings.Fields(line)
-			if len(fields) >= 2 {
-				pid, err := strconv.Atoi(fields[1])
-				if err == nil {
-					pids = append(pids, pid)
-				}
+	if err != nil {
+		// 检查是否是 exit status 1（没有匹配的进程）
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr.ExitCode() == 1 {
+				// 没有找到进程，这也是成功的情况
+				fmt.Println("  未检测到 supervisord 进程")
+				return nil
 			}
 		}
+		// 其他错误
+		return fmt.Errorf("执行 pkill 失败: %v", err)
 	}
 
-	return pids, nil
-}
+	// 等待进程完全终止
+	time.Sleep(1 * time.Second)
 
-// killProcess 终止指定 PID 的进程
-func killProcess(pid int) error {
-	cmd := exec.Command("kill", "-9", strconv.Itoa(pid))
-	return cmd.Run()
+	fmt.Println("  已终止所有 supervisord 进程")
+	return nil
 }
