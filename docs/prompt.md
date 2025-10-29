@@ -32,7 +32,7 @@ make arm64 应该能打包出来文件已经放到 release 中
 docker 文件夹非常小，是 arm64 x86_64 公用的。打包的时候要排除掉 arm64_bin x86_64_bin.
 目前已经进一步优化好了 Makefile，实现 docker 的打包，并正好到之前的打包的 release 目录中。
 
-之前的工作已经完成，我们下一步需要在 docker 文件夹实现一个脚本，当 docker 文件夹被下载到了 /data/local/docker 之后，运行 /data/local/docker/deploy-in-android.sh 就会自动初始化好 docker 环境。
+我们已经完成了， docker 文件夹实现一个脚本，当 docker 文件夹被下载到了 /data/local/docker 之后，运行 /data/local/docker/deploy-in-android.sh 就会自动初始化好 docker 环境。
 初始化 docker 环境的步骤是：
 
 1. 判断是否接入硬盘，且硬盘格式化并挂载好了。参考下面的代码，是可以运行在 Android adb shell 的 root 环境中的：
@@ -66,4 +66,17 @@ export DISK_ROOT=
 export DOCKER_DATA_ROOT=${DISK_ROOT}/opt/dockerd/docker
 export DISK_CACHE=${DISK_ROOT}/Cach
 
-请按上面 1 2 3 4 步骤实现 deploy-in-android.sh 脚本
+上面的 1 2 3 4 步骤也已经实现。接下来实现：
+
+因为 adb shell 环境默认就没有下载工具。我们需要开发一个独立的软件，在 installer 文件夹中用 Golang 代码开发。
+这个软件支持从 CDN 或者服务器下载 docker-*.tar.gz docker-for-android-bin-*-arm64.tar.gz 
+然后解压到 /data/local/docker 里面，以及二进制解压到 /data/local/docker/bin 里面
+
+下载之前，参考下面的代码发现硬盘时否存在：
+NVME=$(mount | grep -F '/dev/block/vold/public:259,1 on /mnt/media_rw/' | grep -F ' type ext4 ' | grep -oE '/mnt/media_rw/[^ ]+')
+
+如果硬盘不存在则报错，如果硬盘存在，则让 ${NVME}/Cache/installer 作为下载安装的临时文件夹。
+设置好临时文件夹之后开始下载，并解压到上文提到的目录中。
+最后 Golang 调用脚本 /data/local/docker/deploy-in-android.sh 执行，Golang 执行脚本的时候也需要把脚本的日志边执行边打印出来给用户。
+执行完成则提示用户安装完成。
+请实现 installer 文件夹的代码。

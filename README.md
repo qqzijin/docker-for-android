@@ -58,6 +58,66 @@ scripts/update_arm64_bin.sh
 
 ## 在 Android 设备上部署
 
+### 方法一：使用自动安装程序（推荐）
+
+最简单的安装方式是使用我们提供的安装程序，它会自动从 CDN/服务器下载并安装所有必需的文件。
+
+#### 前置条件
+
+1. Android 设备已获取 root 权限
+2. 已连接 adb
+3. **必须已挂载 ext4 格式的外置硬盘**
+
+#### 快速安装
+
+1. 构建安装程序：
+
+```bash
+make installer
+```
+
+2. 使用快速安装脚本（推荐）：
+
+```bash
+chmod +x scripts/quick-install.sh
+./scripts/quick-install.sh
+```
+
+脚本会自动：
+- 检测设备架构（arm64 或 x86_64）
+- 推送对应的安装程序到设备
+- 提示你在设备上执行安装
+
+3. 或者手动推送并安装：
+
+```bash
+# 推送安装程序（arm64 示例）
+adb push release/install-docker-arm64 /data/local/tmp/install-docker
+adb shell chmod +x /data/local/tmp/install-docker
+
+# 在设备上执行安装
+adb shell
+su  # 需要 root 权限
+/data/local/tmp/install-docker
+```
+
+#### 安装程序功能
+
+安装程序会自动完成：
+
+1. **检测硬盘** - 检查 ext4 格式的外置硬盘
+2. **下载文件** - 从 CDN/服务器下载最新版本
+   - 优先使用 CDN（`https://fw.kspeeder.com/binary/docker-for-android`）
+   - CDN 失败时自动切换到源服务器
+   - 自动 SHA256 校验确保文件完整性
+3. **解压安装** - 解压到正确位置
+4. **自动部署** - 执行部署脚本，配置环境并启动服务
+5. **安装 DPanel** - 自动部署容器管理面板
+
+整个过程完全自动化，无需手动操作。
+
+### 方法二：手动部署
+
 ### 前置条件
 
 1. Android 设备已获取 root 权限

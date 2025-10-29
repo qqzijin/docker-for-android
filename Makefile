@@ -27,7 +27,7 @@ DOCKER_PACKAGE := docker-$(VERSION).tar.gz
 VERSION_FILE := version.txt
 
 # Targets
-.PHONY: all clean build-release arm64 x86_64 docker-pack version help
+.PHONY: all clean build-release arm64 x86_64 docker-pack version help installer
 
 # Default target
 all: help
@@ -44,6 +44,7 @@ help:
 	@echo "  make x86_64        - Build x86_64 package (not implemented yet)"
 	@echo "  make docker-pack   - Build docker folder package (shared by all architectures)"
 	@echo "  make version       - Generate version file"
+	@echo "  make installer     - Build installer for arm64 and x86_64"
 	@echo "  make clean         - Clean release directory"
 	@echo "  make help          - Show this help message"
 	@echo ""
@@ -93,45 +94,36 @@ version: create-dir
 	@echo "Generating version file..."
 	@echo "# Docker for Android Version File" > $(RELEASE_DIR)/$(VERSION_FILE)
 	@echo "# Generated on $$(date '+%Y-%m-%d %H:%M:%S')" >> $(RELEASE_DIR)/$(VERSION_FILE)
+	@echo "# This file is not cached by CDN and always returns fresh content" >> $(RELEASE_DIR)/$(VERSION_FILE)
 	@echo "" >> $(RELEASE_DIR)/$(VERSION_FILE)
 	@echo "VERSION=$(VERSION)" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@echo "DOCKER_VERSION=$(DOCKER_VERSION)" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@echo "SUB_VERSION=$(SUB_VERSION)" >> $(RELEASE_DIR)/$(VERSION_FILE)
 	@echo "" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@echo "# Download URLs" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@echo "CDN_URL=$(CDN_URL)" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@echo "ORIGIN_SERVER_URL=$(ORIGIN_SERVER_URL)" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@echo "" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@echo "# Package information" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@if [ -f "$(RELEASE_DIR)/$(ARM64_PACKAGE).sha256" ]; then \
-		echo "ARM64_PACKAGE=$(ARM64_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-		echo "ARM64_SHA256=$$(cat $(RELEASE_DIR)/$(ARM64_PACKAGE).sha256 | cut -d' ' -f1)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-	else \
-		echo "ARM64_PACKAGE=$(ARM64_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-		echo "ARM64_SHA256=<not generated yet>" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-	fi
-	@echo "" >> $(RELEASE_DIR)/$(VERSION_FILE)
-	@if [ -f "$(RELEASE_DIR)/$(X86_64_PACKAGE).sha256" ]; then \
-		echo "X86_64_PACKAGE=$(X86_64_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-		echo "X86_64_SHA256=$$(cat $(RELEASE_DIR)/$(X86_64_PACKAGE).sha256 | cut -d' ' -f1)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-	else \
-		echo "X86_64_PACKAGE=$(X86_64_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-		echo "X86_64_SHA256=" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-	fi
-	@echo "" >> $(RELEASE_DIR)/$(VERSION_FILE)
+	@echo "# SHA256 checksums for packages" >> $(RELEASE_DIR)/$(VERSION_FILE)
 	@if [ -f "$(RELEASE_DIR)/$(DOCKER_PACKAGE).sha256" ]; then \
-		echo "DOCKER_PACKAGE=$(DOCKER_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
 		echo "DOCKER_SHA256=$$(cat $(RELEASE_DIR)/$(DOCKER_PACKAGE).sha256 | cut -d' ' -f1)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
 	else \
-		echo "DOCKER_PACKAGE=$(DOCKER_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
-		echo "DOCKER_SHA256=<not generated yet>" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+		echo "DOCKER_SHA256=" >> $(RELEASE_DIR)/$(VERSION_FILE); \
 	fi
+	@if [ -f "$(RELEASE_DIR)/$(ARM64_PACKAGE).sha256" ]; then \
+		echo "BIN_ARM64_SHA256=$$(cat $(RELEASE_DIR)/$(ARM64_PACKAGE).sha256 | cut -d' ' -f1)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+	else \
+		echo "BIN_ARM64_SHA256=" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+	fi
+	@if [ -f "$(RELEASE_DIR)/$(X86_64_PACKAGE).sha256" ]; then \
+		echo "BIN_X86_64_SHA256=$$(cat $(RELEASE_DIR)/$(X86_64_PACKAGE).sha256 | cut -d' ' -f1)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+	else \
+		echo "BIN_X86_64_SHA256=" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+	fi
+	@echo "" >> $(RELEASE_DIR)/$(VERSION_FILE)
+	@echo "# Download URLs" >> $(RELEASE_DIR)/$(VERSION_FILE)
+	@echo "# CDN URL: $(CDN_URL)" >> $(RELEASE_DIR)/$(VERSION_FILE)
+	@echo "# Origin Server: $(ORIGIN_SERVER_URL)" >> $(RELEASE_DIR)/$(VERSION_FILE)
 	@echo "Version file created: $(RELEASE_DIR)/$(VERSION_FILE)"
 	@echo ""
 	@cat $(RELEASE_DIR)/$(VERSION_FILE)
 
 # Build full release
-build-release: clean arm64 docker-pack version
+build-release: clean arm64 docker-pack version installer
 	@echo ""
 	@echo "=========================================="
 	@echo "Release build completed!"
@@ -146,6 +138,20 @@ build-release: clean arm64 docker-pack version
 	@echo "1. Upload files to server: $(ORIGIN_SERVER_URL)"
 	@echo "2. Sync to CDN (except version file)"
 	@echo "3. Upload version file to server (no CDN cache)"
+
+# Build installer binaries
+installer: create-dir
+	@echo "Building installer binaries..."
+	@echo "Building arm64 installer..."
+	@cd installer && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../$(RELEASE_DIR)/install-docker-arm64 install-in-docker.go
+	@echo "✓ arm64 installer built: $(RELEASE_DIR)/install-docker-arm64"
+	@echo "Building x86_64 installer..."
+	@cd installer && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../$(RELEASE_DIR)/install-docker-x86_64 install-in-docker.go
+	@echo "✓ x86_64 installer built: $(RELEASE_DIR)/install-docker-x86_64"
+	@echo "Generating sha256 checksums for installers..."
+	@cd $(RELEASE_DIR) && shasum -a 256 install-docker-arm64 > install-docker-arm64.sha256
+	@cd $(RELEASE_DIR) && shasum -a 256 install-docker-x86_64 > install-docker-x86_64.sha256
+	@echo "✓ Installer binaries created successfully"
 
 # Clean release directory
 clean:
