@@ -7,7 +7,8 @@ DOCKER_VERSION := 28.0.1
 SUB_VERSION := 10
 
 # CDN and Server URLs
-CDN_URL := https://fw.koolcenter.com/binary/docker-for-android
+# Note: CDN doesn't cache .txt files; version.txt is always fresh from CDN
+CDN_URL := https://fw.kspeeder.com/binary/docker-for-android
 ORIGIN_SERVER_URL := https://fw.koolcenter.com/binary/docker-for-android
 
 # Directories
@@ -19,7 +20,7 @@ DOCKER_DIR := docker
 # Package names
 ARM64_PACKAGE := docker-for-android-bin-$(VERSION)-arm64.tar.gz
 X86_64_PACKAGE := docker-for-android-bin-$(VERSION)-x86_64.tar.gz
-VERSION_FILE := version
+VERSION_FILE := version.txt
 
 # Targets
 .PHONY: all clean build-release arm64 x86_64 version help
