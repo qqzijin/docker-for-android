@@ -141,7 +141,7 @@ docker run -d \
     --name dpanel \
     --restart always \
     -p 8080:8080 \
-    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /data/local/docker/var/run/docker.sock:/var/run/docker.sock \
     -v "$DPANEL_CONFIG_DIR:/dpanel" \
     dpanel/dpanel:latest
 
