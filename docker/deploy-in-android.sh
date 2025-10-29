@@ -136,6 +136,8 @@ else
     echo "⚠ DPanel 镜像拉取失败，请检查网络连接"
 fi
 
+docker rm -f dpanel > /dev/null 2>&1 || true
+
 echo "⏳ 启动 DPanel 容器..."
 docker run -d \
     --name dpanel \
