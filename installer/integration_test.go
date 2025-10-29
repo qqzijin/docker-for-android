@@ -197,11 +197,10 @@ func TestRealServerExtractAndVerifyStructure(t *testing.T) {
 	}
 	t.Log("✓ docker 包解压完成")
 
-	// Step 5: 解压二进制包到 docker/bin
+	// Step 5: 解压二进制包到 docker 目录
 	dockerDir := filepath.Join(extractDir, "docker")
-	binDir := filepath.Join(dockerDir, "bin")
 
-	t.Log("解压二进制包到 docker/bin/...")
+	t.Log("解压二进制包到 docker/...")
 	err = extractTarGz(binTarPath, dockerDir)
 	if err != nil {
 		t.Fatalf("解压二进制包失败: %v", err)
@@ -217,28 +216,33 @@ func TestRealServerExtractAndVerifyStructure(t *testing.T) {
 	}
 	t.Logf("✓ docker 目录存在: %s", dockerDir)
 
-	// 验证 bin 目录存在且在 docker 目录下
-	if _, err := os.Stat(binDir); os.IsNotExist(err) {
-		t.Fatalf("bin 目录不存在: %s", binDir)
+	// 查找 bin 目录（可能是 bin 或 arm64_bin）
+	binDir := filepath.Join(dockerDir, "bin")
+	arm64BinDir := filepath.Join(dockerDir, "arm64_bin")
+
+	var actualBinDir string
+	if _, err := os.Stat(arm64BinDir); err == nil {
+		actualBinDir = arm64BinDir
+		t.Logf("✓ 找到 arm64_bin 目录: %s", arm64BinDir)
+	} else if _, err := os.Stat(binDir); err == nil {
+		actualBinDir = binDir
+		t.Logf("✓ 找到 bin 目录: %s", binDir)
+	} else {
+		t.Fatalf("bin 目录不存在（检查了 bin 和 arm64_bin）")
 	}
-	t.Logf("✓ bin 目录存在: %s", binDir)
 
 	// 验证 bin 目录的相对路径
-	relPath, err := filepath.Rel(extractDir, binDir)
+	relPath, err := filepath.Rel(extractDir, actualBinDir)
 	if err != nil {
 		t.Fatalf("计算相对路径失败: %v", err)
 	}
-	expectedPath := "docker/bin"
-	if relPath != expectedPath && relPath != "docker/arm64_bin" {
-		t.Errorf("bin 目录位置不正确，期望: %s 或 docker/arm64_bin, 实际: %s", expectedPath, relPath)
-	}
-	t.Logf("✓ bin 目录位置正确: %s", relPath)
+	t.Logf("✓ bin 目录相对路径: %s", relPath)
 
 	// 验证必需的二进制文件
 	requiredBinaries := []string{"docker", "dockerd", "containerd", "runc"}
 
 	// 检查 bin 目录
-	entries, err := os.ReadDir(binDir)
+	entries, err := os.ReadDir(actualBinDir)
 	if err != nil {
 		t.Fatalf("读取 bin 目录失败: %v", err)
 	}
