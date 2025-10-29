@@ -84,9 +84,9 @@ func detectArchitecture() (string, error) {
 	}
 }
 
-// executeScript 执行脚本并实时输出日志
-func executeScript(scriptPath string) error {
-	cmd := exec.Command("sh", scriptPath)
+// executeScript 执行脚本并实时输出日志，同时传递 diskRoot 参数
+func executeScript(scriptPath string, diskRoot string) error {
+	cmd := exec.Command("sh", scriptPath, diskRoot)
 
 	// 创建管道来捕获标准输出和标准错误
 	stdout, err := cmd.StdoutPipe()

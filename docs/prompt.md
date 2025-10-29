@@ -66,7 +66,7 @@ export DISK_ROOT=
 export DOCKER_DATA_ROOT=${DISK_ROOT}/opt/dockerd/docker
 export DISK_CACHE=${DISK_ROOT}/Cach
 
-上面的 1 2 3 4 步骤也已经实现。接下来实现：
+上面的 1 2 3 4 步骤也已经实现。
 
 因为 adb shell 环境默认就没有下载工具。我们需要开发一个独立的软件，在 installer 文件夹中用 Golang 代码开发。
 这个软件支持从 CDN 或者服务器下载 docker-*.tar.gz docker-for-android-bin-*-arm64.tar.gz 
@@ -79,4 +79,9 @@ NVME=$(mount | grep -F '/dev/block/vold/public:259,1 on /mnt/media_rw/' | grep -
 设置好临时文件夹之后开始下载，并解压到上文提到的目录中。
 最后 Golang 调用脚本 /data/local/docker/deploy-in-android.sh 执行，Golang 执行脚本的时候也需要把脚本的日志边执行边打印出来给用户。
 执行完成则提示用户安装完成。
-请实现 installer 文件夹的代码。
+上文逻辑中的 installer 文件夹的代码已经实现完成。
+目前需要进行优化，需要修改 installer 跟 deploy-in-android.sh 脚本。
+installer 程序负责拿到硬盘路径，作为一个参数调用 deploy-in-android.sh。
+而 deploy-in-android.sh 则需要接受这个参数，作为 DISK_ROOT。
+
+请修改 deploy-in-android.sh 以及 installer 文件夹下面对应的代码。

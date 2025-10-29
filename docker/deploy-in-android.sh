@@ -2,6 +2,14 @@
 
 set -e
 
+# Step 1: 接收 DISK_ROOT 参数
+if [ -z "$1" ]; then
+    echo "✗ 错误: 缺少 DISK_ROOT 参数"
+    echo "用法: $0 <DISK_ROOT>"
+    exit 1
+fi
+
+DISK_ROOT="$1"
 DOCKER_ROOT=/data/local/docker
 cd "$DOCKER_ROOT"
 
@@ -10,37 +18,32 @@ echo "Docker for Android - Deployment Script"
 echo "=========================================="
 echo ""
 
-# Step 1: 检测硬盘挂载点并设置 DISK_ROOT
-echo "[1/4] 检测硬盘挂载点..."
-NVME=$(mount | grep -F '/dev/block/vold/public:259,1 on /mnt/media_rw/' | grep -F ' type ext4 ' | grep -oE '/mnt/media_rw/[^ ]+')
+# Step 1: 使用传入的 DISK_ROOT 参数
+echo "[1/4] 使用硬盘挂载点: $DISK_ROOT"
 
-if [ -n "$NVME" ]; then
-    # 设置硬盘根目录
-    DISK_ROOT="$NVME"
-    echo "✓ 检测到硬盘挂载点: $NVME"
-    echo "✓ 硬盘根目录: $DISK_ROOT"
-        
-    # 从 DISK_ROOT 派生的路径会自动在 docker.env 中定义
-    # 这里只需要创建基础目录
-    mkdir -p "$DISK_ROOT/opt/dockerd/docker"
-    mkdir -p "$DISK_ROOT/Cache/Kspeeder"
-    mkdir -p "$DISK_ROOT/Configs/DPanel"
-
-    # 创建基础目录结构
-    touch "$DISK_ROOT/opt/.nomedia"
-    touch "$DISK_ROOT/Cache/.nomedia"
-    touch "$DISK_ROOT/Configs/.nomedia"
-    
-    echo "✓ 目录结构已创建："
-    echo "  - Docker 数据: \$DISK_ROOT/dockerd/docker"
-    echo "  - 缓存目录: \$DISK_ROOT/Cache/Kspeeder"
-    echo "  - DPanel 配置: \$DISK_ROOT/Configs/DPanel"
-else
-    echo "✗ 错误: 未检测到硬盘挂载点"
-    echo "✗ Docker 需要 ext4 格式的外置硬盘才能运行"
-    echo "✗ 请确保已接入并格式化硬盘后再运行此脚本"
+# 验证 DISK_ROOT 是否存在且可访问
+if [ ! -d "$DISK_ROOT" ]; then
+    echo "✗ 错误: 硬盘挂载点不存在或无法访问: $DISK_ROOT"
     exit 1
 fi
+
+echo "✓ 硬盘根目录: $DISK_ROOT"
+    
+# 从 DISK_ROOT 派生的路径会自动在 docker.env 中定义
+# 这里只需要创建基础目录
+mkdir -p "$DISK_ROOT/opt/dockerd/docker"
+mkdir -p "$DISK_ROOT/Cache/Kspeeder"
+mkdir -p "$DISK_ROOT/Configs/DPanel"
+
+# 创建基础目录结构
+touch "$DISK_ROOT/opt/.nomedia"
+touch "$DISK_ROOT/Cache/.nomedia"
+touch "$DISK_ROOT/Configs/.nomedia"
+
+echo "✓ 目录结构已创建："
+echo "  - Docker 数据: \$DISK_ROOT/opt/dockerd/docker"
+echo "  - 缓存目录: \$DISK_ROOT/Cache/Kspeeder"
+echo "  - DPanel 配置: \$DISK_ROOT/Configs/DPanel"
 echo ""
 
 # Step 2: 更新 docker.env 文件

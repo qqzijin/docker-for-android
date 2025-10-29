@@ -118,7 +118,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := executeScript(deployScript); err != nil {
+	if err := executeScript(deployScript, diskRoot); err != nil {
 		fmt.Printf("✗ 错误: 部署脚本执行失败: %v\n", err)
 		os.Exit(1)
 	}
