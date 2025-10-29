@@ -1,10 +1,13 @@
 # Docker for Android Makefile
-# Version: 28.0.1.10
+# Version: Auto-read from VERSION file
+
+# Read version from VERSION file
+-include VERSION
+export DOCKER_VERSION
+export SUB_VERSION
 
 # Variables
-VERSION := 28.0.1.10
-DOCKER_VERSION := 28.0.1
-SUB_VERSION := 10
+VERSION := $(DOCKER_VERSION).$(SUB_VERSION)
 
 # CDN and Server URLs
 # Note: CDN doesn't cache .txt files; version.txt is always fresh from CDN
@@ -20,10 +23,11 @@ DOCKER_DIR := docker
 # Package names
 ARM64_PACKAGE := docker-for-android-bin-$(VERSION)-arm64.tar.gz
 X86_64_PACKAGE := docker-for-android-bin-$(VERSION)-x86_64.tar.gz
+DOCKER_PACKAGE := docker-$(VERSION).tar.gz
 VERSION_FILE := version.txt
 
 # Targets
-.PHONY: all clean build-release arm64 x86_64 version help
+.PHONY: all clean build-release arm64 x86_64 docker-pack version help
 
 # Default target
 all: help
@@ -38,6 +42,7 @@ help:
 	@echo "  make build-release - Build release packages (currently arm64 only)"
 	@echo "  make arm64         - Build arm64 package only"
 	@echo "  make x86_64        - Build x86_64 package (not implemented yet)"
+	@echo "  make docker-pack   - Build docker folder package (shared by all architectures)"
 	@echo "  make version       - Generate version file"
 	@echo "  make clean         - Clean release directory"
 	@echo "  make help          - Show this help message"
@@ -67,6 +72,21 @@ arm64: create-dir
 x86_64: create-dir
 	@echo "x86_64 package build not implemented yet"
 	@echo "Please add x86_64_bin directory first"
+
+# Build docker folder package (shared by all architectures)
+docker-pack: create-dir
+	@echo "Building docker folder package..."
+	@if [ ! -d "$(DOCKER_DIR)" ]; then \
+		echo "Error: $(DOCKER_DIR) directory not found!"; \
+		exit 1; \
+	fi
+	@echo "Packaging $(DOCKER_DIR) to $(RELEASE_DIR)/$(DOCKER_PACKAGE)..."
+	@echo "Excluding arm64_bin and x86_64_bin directories..."
+	@tar -czf $(RELEASE_DIR)/$(DOCKER_PACKAGE) --exclude='arm64_bin' --exclude='x86_64_bin' $(DOCKER_DIR)
+	@echo "Generating sha256 checksum for docker package..."
+	@cd $(RELEASE_DIR) && shasum -a 256 $(DOCKER_PACKAGE) > $(DOCKER_PACKAGE).sha256
+	@echo "docker package created: $(RELEASE_DIR)/$(DOCKER_PACKAGE)"
+	@echo "SHA256: $$(cat $(RELEASE_DIR)/$(DOCKER_PACKAGE).sha256)"
 
 # Generate version file
 version: create-dir
@@ -98,12 +118,20 @@ version: create-dir
 		echo "X86_64_PACKAGE=$(X86_64_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
 		echo "X86_64_SHA256=" >> $(RELEASE_DIR)/$(VERSION_FILE); \
 	fi
+	@echo "" >> $(RELEASE_DIR)/$(VERSION_FILE)
+	@if [ -f "$(RELEASE_DIR)/$(DOCKER_PACKAGE).sha256" ]; then \
+		echo "DOCKER_PACKAGE=$(DOCKER_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+		echo "DOCKER_SHA256=$$(cat $(RELEASE_DIR)/$(DOCKER_PACKAGE).sha256 | cut -d' ' -f1)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+	else \
+		echo "DOCKER_PACKAGE=$(DOCKER_PACKAGE)" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+		echo "DOCKER_SHA256=<not generated yet>" >> $(RELEASE_DIR)/$(VERSION_FILE); \
+	fi
 	@echo "Version file created: $(RELEASE_DIR)/$(VERSION_FILE)"
 	@echo ""
 	@cat $(RELEASE_DIR)/$(VERSION_FILE)
 
 # Build full release
-build-release: clean arm64 version
+build-release: clean arm64 docker-pack version
 	@echo ""
 	@echo "=========================================="
 	@echo "Release build completed!"
