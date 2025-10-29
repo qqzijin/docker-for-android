@@ -6,22 +6,63 @@ import (
 	"io"
 	"os/exec"
 	"strings"
+	"syscall"
 )
+
+// getDiskSize 获取指定路径的磁盘大小（KB）
+func getDiskSize(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
+	if err != nil {
+		return 0, err
+	}
+	// 计算总大小（字节），然后转换为 KB
+	// Blocks * BlockSize / 1024
+	totalSizeKB := (stat.Blocks * uint64(stat.Bsize)) / 1024
+	return totalSizeKB, nil
+}
 
 // detectDiskMount 检测硬盘挂载点
 func detectDiskMount() (string, error) {
-	cmd := exec.Command("sh", "-c", "mount | grep -F '/dev/block/vold/public:259,1 on /mnt/media_rw/' | grep -F ' type ext4 ' | grep -oE '/mnt/media_rw/[^ ]+'")
-	output, err := cmd.Output()
-	if err != nil || len(output) == 0 {
+	// 纯 Go 实现：遍历 /mnt/media_rw 下 ext4 挂载点，选最大空间
+	file, err := exec.Command("mount").Output()
+	if err != nil {
+		return "", fmt.Errorf("无法获取挂载信息: %v", err)
+	}
+	lines := strings.Split(string(file), "\n")
+	var maxSize uint64
+	var bestMount string
+	for _, line := range lines {
+		// 只处理 ext4 且挂载在 /mnt/media_rw 下的
+		if !strings.Contains(line, " type ext4 ") || !strings.Contains(line, "/mnt/media_rw/") {
+			continue
+		}
+		// 解析挂载点
+		parts := strings.Fields(line)
+		var mountPath string
+		for i, part := range parts {
+			if part == "on" && i+1 < len(parts) {
+				mountPath = parts[i+1]
+				break
+			}
+		}
+		if mountPath == "" {
+			continue
+		}
+		// 使用纯 Go 获取挂载点空间
+		size, err := getDiskSize(mountPath)
+		if err != nil {
+			continue
+		}
+		if size > maxSize {
+			maxSize = size
+			bestMount = mountPath
+		}
+	}
+	if bestMount == "" {
 		return "", fmt.Errorf("未检测到硬盘挂载点")
 	}
-
-	mountPoint := strings.TrimSpace(string(output))
-	if mountPoint == "" {
-		return "", fmt.Errorf("未检测到硬盘挂载点")
-	}
-
-	return mountPoint, nil
+	return bestMount, nil
 }
 
 // detectArchitecture 检测当前系统架构

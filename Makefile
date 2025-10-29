@@ -143,10 +143,10 @@ build-release: clean arm64 docker-pack version installer
 installer: create-dir
 	@echo "Building installer binaries..."
 	@echo "Building arm64 installer..."
-	@cd installer && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../$(RELEASE_DIR)/install-docker-arm64 install-in-docker.go
+	@cd installer && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../$(RELEASE_DIR)/install-docker-arm64 .
 	@echo "✓ arm64 installer built: $(RELEASE_DIR)/install-docker-arm64"
 	@echo "Building x86_64 installer..."
-	@cd installer && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../$(RELEASE_DIR)/install-docker-x86_64 install-in-docker.go
+	@cd installer && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../$(RELEASE_DIR)/install-docker-x86_64 .
 	@echo "✓ x86_64 installer built: $(RELEASE_DIR)/install-docker-x86_64"
 	@echo "Generating sha256 checksums for installers..."
 	@cd $(RELEASE_DIR) && shasum -a 256 install-docker-arm64 > install-docker-arm64.sha256
