@@ -40,20 +40,20 @@ func TestKillProcess_InvalidPID(t *testing.T) {
 func TestStopSupervisord_NoInstallation(t *testing.T) {
 	// 创建临时目录模拟环境
 	tmpDir := t.TempDir()
-	
+
 	// 临时修改 supervisord 路径为不存在的路径
 	// 注意：这个测试依赖于 stopSupervisord 使用固定路径
 	// 在实际环境中，如果 /data/local/docker/bin/supervisord 不存在
 	// 函数应该正常返回而不报错
-	
+
 	// 由于 stopSupervisord 使用硬编码路径，我们创建一个包装函数来测试
 	supervisordPath := filepath.Join(tmpDir, "supervisord")
-	
+
 	// 验证文件不存在
 	if _, err := os.Stat(supervisordPath); !os.IsNotExist(err) {
 		t.Fatalf("临时文件不应该存在")
 	}
-	
+
 	// 这个测试主要验证逻辑，实际的 stopSupervisord 会检查固定路径
 	t.Log("验证：当 supervisord 不存在时，函数应该优雅地处理")
 }
@@ -95,13 +95,13 @@ func TestParsePIDFromPSOutput(t *testing.T) {
 			// 模拟 findSupervisordProcesses 的逻辑
 			containsSupervisord := strings.Contains(tc.psLine, "supervisord")
 			containsGrep := strings.Contains(tc.psLine, "grep")
-			
+
 			shouldMatch := containsSupervisord && !containsGrep
-			
+
 			if shouldMatch != tc.expected {
 				t.Errorf("匹配结果不符合预期: got %v, want %v", shouldMatch, tc.expected)
 			}
-			
+
 			if tc.expected {
 				// 解析 PID
 				fields := strings.Fields(tc.psLine)
@@ -129,7 +129,7 @@ func TestStopSupervisordWorkflow(t *testing.T) {
 	t.Log("5. 查找仍在运行的 supervisord 进程")
 	t.Log("6. 如果有进程，使用 kill -9 强制终止")
 	t.Log("7. 再次验证所有进程已终止")
-	
+
 	// 这是一个文档性测试，验证工作流程的设计
 	workflow := []string{
 		"检查文件存在性",
@@ -139,7 +139,7 @@ func TestStopSupervisordWorkflow(t *testing.T) {
 		"强制终止进程",
 		"最终验证",
 	}
-	
+
 	if len(workflow) != 6 {
 		t.Errorf("工作流程步骤数量不对")
 	}
