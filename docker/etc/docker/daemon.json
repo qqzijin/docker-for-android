@@ -1,0 +1,1 @@
+{ "iptables": false, "ip6tables": false, "registry-mirrors": [ "https:\/\/registry.linkease.net:5443" ], "log-level": "warn", "log-driver": "json-file", "log-opts": { "max-size": "50m", "max-file": "2" } }
