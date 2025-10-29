@@ -30,6 +30,40 @@ make arm64 应该能打包出来文件已经放到 release 中
 
 上面的二进制已经打包完成，我们还需要打包 docker 文件夹，变成 docker-28.0.1.10.tar.gz
 docker 文件夹非常小，是 arm64 x86_64 公用的。打包的时候要排除掉 arm64_bin x86_64_bin.
-请继续优化 Makefile，实现 docker 的打包，并正好到之前的打包的 release 目录中。
+目前已经进一步优化好了 Makefile，实现 docker 的打包，并正好到之前的打包的 release 目录中。
 
+之前的工作已经完成，我们下一步需要在 docker 文件夹实现一个脚本，当 docker 文件夹被下载到了 /data/local/docker 之后，运行 /data/local/docker/deploy-in-android.sh 就会自动初始化好 docker 环境。
+初始化 docker 环境的步骤是：
 
+1. 判断是否接入硬盘，且硬盘格式化并挂载好了。参考下面的代码，是可以运行在 Android adb shell 的 root 环境中的：
+
+	NVME=$(mount | grep -F '/dev/block/vold/public:259,1 on /mnt/media_rw/' | grep -F ' type ext4 ' | grep -oE '/mnt/media_rw/[^ ]+')
+	if [ -n "$NVME" ]; then
+		DOCKER_DATA_ROOT="$NVME/opt/dockerd/docker"
+		mkdir -p "$DOCKER_DATA_ROOT"
+		touch "$NVME/opt/.nomedia"
+	fi
+
+2. 得到了硬盘的挂载点后，设置 docker 目录下面的 docker.env 文件，把这个变量设置为具体的值：
+export DOCKER_DATA_ROOT=
+
+3. 同时修改 docker 目录下面的 etc/kspeeder.conf 把下面的 -cachePath 目录设置为上面得到的挂载点：
+command=/data/local/docker/bin/kspeeder \
+    -cachePath /mnt/media_rw/048a3593-e231-438c-a980-38149429f948/dockercache
+
+如果 supervisor 也能自动从 docker.env 里面得到环境变量，并传递给 kspeeder 就更好了。
+这样可以更好的统一环境变量。 
+
+4. 之后需要启动 docker，检测 docker 是否启动完成。
+启动完成后下载并安装一个 dpanel 的容器，监听在 :8080 端口上，且 dpanel 的容器的配置数据目录映射到
+DOCKER_DATA_ROOT 的上层文件夹的 DOCKER_DATA_ROOT/../Configs/DPanel 目录下
+
+经过思考，我们还是需要更简单些。
+默认我们找到一个合适的硬盘位置，定义为 DISK_ROOT
+后续的 DOCKER_DATA_ROOT KSPEEDER 路径都从 DISK_ROOT 派生出来。
+这样我们只需要找到一个硬盘，并设置硬盘的的变量，后续的其他软件都延续这个硬盘位置。比如下面这样：
+export DISK_ROOT=
+export DOCKER_DATA_ROOT=${DISK_ROOT}/opt/dockerd/docker
+export DISK_CACHE=${DISK_ROOT}/Cach
+
+请按上面 1 2 3 4 步骤实现 deploy-in-android.sh 脚本
