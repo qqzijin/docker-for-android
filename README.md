@@ -4,7 +4,7 @@
 
 ## 版本与发布
 
-- 当前版本：`28.0.1.10`
+- 当前版本：[查看版本](version)
 - 源服务器（原始）：`https://fw.koolcenter.com/binary/docker-for-android`
 - CDN（.txt 不缓存，始终最新）：`https://fw.kspeeder.com/binary/docker-for-android`
 
@@ -61,6 +61,9 @@ scripts/update_arm64_bin.sh
 ### 方法一：使用自动安装程序（推荐）
 
 最简单的安装方式是使用我们提供的安装程序，它会自动从 CDN/服务器下载并安装所有必需的文件。
+[点击下载地址](https://fw0.koolcenter.com/binary/docker-for-android/install-docker-arm64)
+
+也可以查看下面的编译步骤自动编译
 
 #### 前置条件
 
@@ -70,36 +73,13 @@ scripts/update_arm64_bin.sh
 
 #### 快速安装
 
-1. 构建安装程序：
+现在把安装软件下载到电脑上，再用 adb 推送到设备上：
+* adb connect IP:5555
+* adb root
+* adb push ./install-doker-arm64 /data/local/
+* adb shell
 
-```bash
-make installer
-```
-
-2. 使用快速安装脚本（推荐）：
-
-```bash
-chmod +x scripts/quick-install.sh
-./scripts/quick-install.sh
-```
-
-脚本会自动：
-- 检测设备架构（arm64 或 x86_64）
-- 推送对应的安装程序到设备
-- 提示你在设备上执行安装
-
-3. 或者手动推送并安装：
-
-```bash
-# 推送安装程序（arm64 示例）
-adb push release/install-docker-arm64 /data/local/tmp/install-docker
-adb shell chmod +x /data/local/tmp/install-docker
-
-# 在设备上执行安装
-adb shell
-su  # 需要 root 权限
-/data/local/tmp/install-docker
-```
+到 shell 里面运行：/data/local/install-docker-arm64
 
 #### 安装程序功能
 
@@ -125,6 +105,8 @@ su  # 需要 root 权限
 3. **必须已挂载 ext4 格式的外置硬盘**（脚本检测不到硬盘会直接退出）
 
 ### 部署步骤
+
+下面的教程的版本号请自行根据实际修改
 
 1. 构建 docker 发布包：
 
