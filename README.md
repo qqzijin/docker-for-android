@@ -4,7 +4,7 @@
 
 ## 版本与发布
 
-- 当前版本：[查看版本](version)
+- 当前版本：[查看版本](VERSION)
 - 源服务器（原始）：`https://fw.koolcenter.com/binary/docker-for-android`
 - CDN（.txt 不缓存，始终最新）：`https://fw.kspeeder.com/binary/docker-for-android`
 
