@@ -122,6 +122,13 @@ func main() {
 	}
 	fmt.Printf("✓ %s 解压完成\n", binTarFile)
 
+	if _, err := os.Stat(binDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(binDir, 0755); err != nil {
+			fmt.Printf("✗ 错误: 创建二进制目录失败: %v\n", err)
+			os.Exit(1)
+		}
+	}
+
 	// 移动 arm64_bin/* 到 binDir
 	armBinDir := filepath.Join(binExtractDir, "arm64_bin")
 	if err := moveBinFiles(armBinDir, binDir); err != nil {
