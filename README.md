@@ -1,12 +1,17 @@
 # docker-for-android
 
 目前暂时支持 arm64/aarch64 架构的部分 Android 设备。
+本项目优先支持 [EasePi-A2](https://www.koolcenter.com/t/topic/5204)
 
 ## 本项目使用原生 Docker 二进制
 
 使用原生 Docker 二进制，没对 Docker 二进制进行任何修改，安全可靠。
 目前的下载地址为：
 * https://download.docker.com/linux/static/stable/aarch64/docker-28.0.1.tgz
+ 
+ 其他 Android 系统支持可以讨论：
+ * https://github.com/linkease/docker-for-android/issues/1
+ * https://www.koolcenter.com/t/topic/5228
 
 ## 版本与发布
 
