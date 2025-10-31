@@ -24,47 +24,82 @@ func getDiskSize(path string) (uint64, error) {
 	return totalSizeKB, nil
 }
 
-// detectDiskMount 检测硬盘挂载点
-func detectDiskMount() (string, error) {
-	// 纯 Go 实现：遍历 /mnt/media_rw 下 ext4 挂载点，选最大空间
-	file, err := exec.Command("mount").Output()
+// getFreeSpace 获取指定路径的可用空间（KB）
+func getFreeSpace(path string) (uint64, error) {
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(path, &stat)
 	if err != nil {
-		return "", fmt.Errorf("无法获取挂载信息: %v", err)
+		return 0, err
 	}
-	lines := strings.Split(string(file), "\n")
-	var maxSize uint64
-	var bestMount string
-	for _, line := range lines {
-		// 只处理 ext4 且挂载在 /mnt/media_rw 下的
-		if !strings.Contains(line, " type ext4 ") || !strings.Contains(line, "/mnt/media_rw/") {
+	// 计算可用空间（字节），然后转换为 KB
+	// Bfree * BlockSize / 1024
+	freeSpaceKB := (stat.Bfree * uint64(stat.Bsize)) / 1024
+	return freeSpaceKB, nil
+}
+
+// detectDiskMount 检测可用的存储空间（支持外接硬盘和本地空间）
+func detectDiskMount() (string, error) {
+	// 定义候选的存储路径（按优先级排序）
+	candidatePaths := []string{
+		// 外接硬盘路径
+		"/mnt/media_rw",           // 外接硬盘挂载点
+		"/storage",                // 存储设备
+		"/mnt/sdcard",             // SD卡
+		// 本地空间路径
+		"/data/local/tmp",         // 系统临时目录
+		"/data/data",              // 应用数据目录
+		"/data",                   // 系统数据分区
+		"/sdcard",                 // 内部存储
+		"/storage/emulated/0",     // 模拟存储
+	}
+
+	var maxFreeSpace uint64
+	var bestPath string
+
+	// 检查每个候选路径的可用空间
+	for _, basePath := range candidatePaths {
+		// 检查路径是否存在
+		if _, err := os.Stat(basePath); os.IsNotExist(err) {
 			continue
 		}
-		// 解析挂载点
-		parts := strings.Fields(line)
-		var mountPath string
-		for i, part := range parts {
-			if part == "on" && i+1 < len(parts) {
-				mountPath = parts[i+1]
-				break
-			}
-		}
-		if mountPath == "" {
-			continue
-		}
-		// 使用纯 Go 获取挂载点空间
-		size, err := getDiskSize(mountPath)
+
+		// 获取可用空间
+		freeSpace, err := getFreeSpace(basePath)
 		if err != nil {
 			continue
 		}
-		if size > maxSize {
-			maxSize = size
-			bestMount = mountPath
+
+		// 设置最小空间要求（1GB = 1048576 KB）
+		minRequiredSpace := uint64(1048576)
+		if freeSpace < minRequiredSpace {
+			continue
+		}
+
+		fmt.Printf("  检测路径: %s, 可用空间: %.2f GB\n", 
+			basePath, float64(freeSpace)/1024/1024)
+
+		if freeSpace > maxFreeSpace {
+			maxFreeSpace = freeSpace
+			bestPath = basePath
 		}
 	}
-	if bestMount == "" {
-		return "", fmt.Errorf("未检测到硬盘挂载点")
+
+	if bestPath == "" {
+		// 如果没有找到合适的路径，尝试使用当前工作目录
+		currentDir, err := os.Getwd()
+		if err == nil {
+			if freeSpace, err := getFreeSpace(currentDir); err == nil && freeSpace > 1048576 {
+				fmt.Printf("  使用当前目录: %s, 可用空间: %.2f GB\n", 
+					currentDir, float64(freeSpace)/1024/1024)
+				return currentDir, nil
+			}
+		}
+		return "", fmt.Errorf("未找到足够的可用空间（需要至少 1GB 空间）")
 	}
-	return bestMount, nil
+
+	fmt.Printf("✓ 选择存储路径: %s, 可用空间: %.2f GB\n", 
+		bestPath, float64(maxFreeSpace)/1024/1024)
+	return bestPath, nil
 }
 
 // detectArchitecture 检测当前系统架构
