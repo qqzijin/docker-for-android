@@ -2,6 +2,12 @@
 
 目前暂时支持 arm64/aarch64 架构的部分 Android 设备。
 
+## 本项目使用原生 Docker 二进制
+
+使用原生 Docker 二进制，没对 Docker 二进制进行任何修改，安全可靠。
+目前的下载地址为：
+* https://download.docker.com/linux/static/stable/aarch64/docker-28.0.1.tgz
+
 ## 版本与发布
 
 - 当前版本：[查看版本](VERSION)
