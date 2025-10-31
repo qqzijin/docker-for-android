@@ -15,6 +15,9 @@ const (
 
 	// 版本文件
 	versionFile = "version.txt"
+	
+	// 本地安装模式
+	localInstallDir = "/sdcard/docker-install"
 )
 
 type VersionInfo struct {
@@ -71,22 +74,46 @@ func main() {
 	// 下载 docker 通用包
 	dockerTarFile := fmt.Sprintf("docker-%s.tar.gz", version.Version)
 	dockerTarPath := filepath.Join(tmpDir, dockerTarFile)
-	fmt.Printf("⏳ 下载 %s...\n", dockerTarFile)
-	if err := downloadFile(httpClient, dockerTarPath, dockerTarFile, version.DockerSHA256); err != nil {
-		fmt.Printf("✗ 错误: 下载失败: %v\n", err)
-		os.Exit(1)
+	
+	// 检查本地是否有文件
+	localDockerPath := filepath.Join(localInstallDir, dockerTarFile)
+	if fileExists(localDockerPath) {
+		fmt.Printf("⏳ 使用本地文件 %s...\n", localDockerPath)
+		if err := copyFile(localDockerPath, dockerTarPath); err != nil {
+			fmt.Printf("✗ 错误: 复制本地文件失败: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ %s 复制完成\n", dockerTarFile)
+	} else {
+		fmt.Printf("⏳ 下载 %s...\n", dockerTarFile)
+		if err := downloadFile(httpClient, dockerTarPath, dockerTarFile, version.DockerSHA256); err != nil {
+			fmt.Printf("✗ 错误: 下载失败: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ %s 下载完成\n", dockerTarFile)
 	}
-	fmt.Printf("✓ %s 下载完成\n", dockerTarFile)
 
 	// 下载架构特定二进制包
 	binTarFile := fmt.Sprintf("docker-for-android-bin-%s-%s.tar.gz", version.Version, version.Architecture)
 	binTarPath := filepath.Join(tmpDir, binTarFile)
-	fmt.Printf("⏳ 下载 %s...\n", binTarFile)
-	if err := downloadFile(httpClient, binTarPath, binTarFile, version.BinSHA256); err != nil {
-		fmt.Printf("✗ 错误: 下载失败: %v\n", err)
-		os.Exit(1)
+	
+	// 检查本地是否有文件
+	localBinPath := filepath.Join(localInstallDir, binTarFile)
+	if fileExists(localBinPath) {
+		fmt.Printf("⏳ 使用本地文件 %s...\n", localBinPath)
+		if err := copyFile(localBinPath, binTarPath); err != nil {
+			fmt.Printf("✗ 错误: 复制本地文件失败: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ %s 复制完成\n", binTarFile)
+	} else {
+		fmt.Printf("⏳ 下载 %s...\n", binTarFile)
+		if err := downloadFile(httpClient, binTarPath, binTarFile, version.BinSHA256); err != nil {
+			fmt.Printf("✗ 错误: 下载失败: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("✓ %s 下载完成\n", binTarFile)
 	}
-	fmt.Printf("✓ %s 下载完成\n", binTarFile)
 	fmt.Println()
 
 	// Step 3.5: 停止正在运行的服务
@@ -176,10 +203,20 @@ func getVersionInfo(client *http.Client, tmpDir string) (*VersionInfo, error) {
 		return nil, err
 	}
 
-	// 先尝试从 CDN 下载 version.txt
+	// 先尝试从本地获取 version.txt
+	localVersionPath := filepath.Join(localInstallDir, versionFile)
 	versionPath := filepath.Join(tmpDir, versionFile)
-	if err := downloadFile(client, versionPath, versionFile, ""); err != nil {
-		return nil, fmt.Errorf("无法下载 version.txt: %v", err)
+	
+	if fileExists(localVersionPath) {
+		fmt.Printf("✓ 使用本地版本文件: %s\n", localVersionPath)
+		if err := copyFile(localVersionPath, versionPath); err != nil {
+			return nil, fmt.Errorf("无法复制本地 version.txt: %v", err)
+		}
+	} else {
+		// 从 CDN 下载 version.txt
+		if err := downloadFile(client, versionPath, versionFile, ""); err != nil {
+			return nil, fmt.Errorf("无法下载 version.txt: %v", err)
+		}
 	}
 
 	// 解析 version.txt
@@ -228,4 +265,25 @@ func getVersionInfo(client *http.Client, tmpDir string) (*VersionInfo, error) {
 	}
 
 	return info, nil
+}
+
+// fileExists 检查文件是否存在
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
+}
+
+// copyFile 复制文件
+func copyFile(src, dst string) error {
+	input, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	
+	// 确保目标目录存在
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	
+	return os.WriteFile(dst, input, 0644)
 }
